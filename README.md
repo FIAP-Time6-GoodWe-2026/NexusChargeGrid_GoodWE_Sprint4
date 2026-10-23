@@ -1,76 +1,418 @@
 # ⚡ ChargeGrid Intelligence — NexusCharge
 
-> Sistema inteligente de gerenciamento de recarga para eletropostos comerciais
-> **EV Challenge 2026 — FIAP + GoodWe · Sprint 3**
+> **Sprint 4 — Solução Final Integrada e Inovadora**
+> EV Challenge 2026 · FIAP + GoodWe · Time 6 · 1CCPZ (Ciência da Computação — Noturno)
 
-📦 **Repositório:** https://github.com/FIAP-Time6-GoodWe-2026/ChargeGridIntelligence-NexusCharge-Sprint3
-
-ChargeGrid Intelligence resolve um problema concreto do segmento comercial e de
-varejo de eletropostos: a ausência de mecanismos integrados para **orquestrar
-potência elétrica**, **registrar ciclos de recarga**, **faturar sessões** e
-**comunicar informações** ao usuário e à plataforma de gestão.
-
-O hardware de referência é o carregador AC **GoodWe GW11K-HCA-20** (11 kW, linha
-HCA G2), e a integração é simulada via protocolo industrial **Modbus TCP**.
-
----
-
-## 🆕 O que o Sprint 3 acrescenta
-
-O Sprint 2 entregou a orquestração de potência e a tarifação dinâmica. O
-Sprint 3 fecha o ciclo comercial: **quem é o usuário, como ele reserva, e como
-ele paga**.
-
-| Novidade | O que é |
+| | |
 |---|---|
-| **Autenticação e Perfis** | Cinco contas pré-cadastradas (incluindo Luiz Otávio com cartão salvo); ninguém chega ao mapa sem entrar no Modo App. Rotas administrativas restritas ao operador. |
-| **Modo App / Modo Totem** | Alternância com um clique entre experiência mobile para o motorista e interface vertical para totens físicos de autoatendimento touchscreen. |
-| **Gestão de Veículos** | Suporte a múltiplos veículos por conta, cadastro de veículos avulsos e bloqueio estrito contra recargas simultâneas para a mesma placa. |
-| **Totem com Pareamento** | Login no totem via QR Code dinâmico (ISO/IEC 18004 na stdlib) lido pelo smartphone, liberando o conector sem digitação de senha pública. |
-| **Recarga sem cadastro (Totem)** | Visitante sem conta informa só a placa e paga um sinal de R$ 50,00 (cartão por aproximação ou Pix). A recarga é **pré-paga**: termina sozinha ao atingir o valor pago. Pode ser encerrada antes no totem ou no celular (QR de acompanhamento, sem app): o consumo sai do sinal e o restante é devolvido. |
-| **Acompanhamento Móvel Omnichannel** | Monitoramento da recarga em tempo real pelo smartphone via QR Code do totem tanto para contas cadastradas (`/celular/parear/<token>`) quanto para visitantes avulsos (`/avulso/<token>`), com telemetria viva, encerramento remoto e quitação que libera o conector na hora. |
-| **Sincronização Totem ⇄ Celular** | O totem monitora ativamente pagamentos realizados pelo smartphone, transitando automaticamente da tela de cobrança para o comprovante final sem exigir interação física no display público. |
-| **NexusCoin** | Moeda interna com paridade 1 NC = R$ 1,00, **10% de cashback** ao pagar a recarga com ela, extrato auditável e recarga por Pix ou cartão. |
-| **Reserva com sinal** | Bloqueia um conector por 15 minutos cobrando R$ 10,00. Compareceu, o sinal vira crédito; não compareceu, vira taxa por bloqueio; cancelou no prazo, estorno integral. |
-| **Encerrar e pagar** | Botão na tela do posto encerra a própria recarga e leva à tela de pagamento, com NexusCoin, Pix (QR simulado) e cartão salvo. |
-| **Menu de perfil** | Avatar no cabeçalho com nome, saldo, atalho de recarga e — para o operador — acesso ao painel. |
-| **Painel do operador** | Hub em `/admin` reunindo dashboard, relatório, log Modbus e testes, com indicadores ao vivo e exportação em CSV. |
-| **Persistência** | SQLite (`sqlite3` da biblioteca padrão) guarda carteiras, extrato, reservas e histórico de sessões. |
-| **Estruturas de Dados** | Busca e ordenação implementadas à mão em `algoritmos.py`, **rodando em produção** (`get_session` e `rebalance`), com um segundo ponto de entrada em `menu.py` — menu de terminal sobre a mesma coleção de sessões. |
-| **Fundação de design** | Escala tipográfica, espaçamento, raios e movimento em tokens; contrastes corrigidos para WCAG AA nos dois temas; foco de teclado visível; `prefers-reduced-motion`. |
-| **Hardening & Resiliência** | Cabeçalhos defensivos OWASP (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `X-XSS-Protection`), proteção anti-open-redirect, clamp contra clock skew em `duration_seconds` e páginas de erro 404/500 customizadas. |
+| **Documento em PDF** | [`docs/ChargeGrid_Sprint4_Documentacao.pdf`](docs/ChargeGrid_Sprint4_Documentacao.pdf) |
+| **Simulação Wokwi (Sprint 3)** | https://wokwi.com/projects/475464686061787137 |
 
 ---
 
-## 🚀 Como executar
+## 1. Equipe
 
-**Pré-requisito:** Python 3.11+. As duas bibliotecas (`flask` e `pytest`) são
-instaladas automaticamente na primeira execução. O banco de dados usa o módulo
-`sqlite3`, que já vem com o Python — **não há nada a instalar por causa dele**.
+| Nome | RM |
+|---|---|
+| Alan Junio Araujo de Souza | 574112 |
+| Arthur Vettorazzo de Souza | 569445 |
+| Brayan Barbosa Dos Santos | 573682 |
+| Giovanne Gomes Petenuci | 574091 |
+| Gustavo Zibini Belizario | 561376 |
+| Luiz Otávio Brito Freixo | 569977 |
 
-### Windows
+---
 
-Dois cliques em **`iniciar.bat`**. Ele confere o Python, instala o que faltar
-e abre um menu:
+## 2. Resumo
+
+O **ChargeGrid Intelligence — NexusCharge** é um sistema de gestão de eletropostos comerciais que decide, a cada carro que chega, **quanta potência cada conector recebe**, **quanto custa a recarga** e **o que o motorista deve fazer**: carregar agora ou esperar.
+
+O problema de partida é aritmético. Um posto com cinco carregadores GoodWe GW11K-HCA-20 soma 5 × 11 kW = **55 kW**, mas a entrada de energia do estabelecimento suporta **33 kW**. Sem gestão, o dono precisa pagar uma obra de ampliação; com gestão, a mesma instalação atende todos os carros.
+
+**O que a Sprint 4 entrega.** Nas Sprints 1 a 3 construímos a orquestração de potência, a tarifação dinâmica, a comunicação Modbus TCP, a carteira digital (NexusCoin), as reservas e o painel do operador, tudo em software. Na Sprint 4 **a solução saiu do papel e foi integrada ao hardware**:
+
+- uma **maquete de mini eletroposto** com **ESP32**, **3 sensores INA219** (um por porta) e **3 portas USB-C**, em que **celulares simulam carros**;
+- o ESP32 envia ao site, por **Wi-Fi (HTTP/JSON)**, a corrente e a tensão de cada porta; o site decide a presença do carro, encerra a recarga quando o cabo é retirado e **devolve a cor do semáforo** que o ESP32 acende nos LEDs;
+- um **totem no posto** que reúne duas funções: um **QR Code**, por onde o motorista acompanha e paga a recarga pelo celular (com ou sem conta), e o **semáforo** com a situação do posto;
+- o **site ChargeGrid**, que ganhou o **Modo Totem** com pareamento por QR Code, veículos por conta, recarga sem conta pré-paga, reforços de segurança e a API de orçamento de potência de origem solar (seção 4.7).
+
+Isso foi montado para a apresentação na **FIAP NEXT** e mostra, de forma física, a decisão do motorista: o carro chega, o semáforo sinaliza o estado do posto e ele escolhe entre carregar ou esperar.
+
+```mermaid
+flowchart LR
+  C["Celulares<br/>simulam os carros"] --> M["Maquete do mini eletroposto<br/>3 portas USB-C · ESP32 + 3 INA219 · LEDs"]
+  M --> T["Totem do posto<br/>QR Code + semáforo"]
+  T --> D["Motorista<br/>carregar ou esperar"]
+  M -.-> S["ChargeGrid (Flask)<br/>PowerManager · PricingEngine · carteira · reservas · SQLite"]
+  T -.-> S
+  S <--> G["GoodWe GW11K-HCA-20<br/>Modbus TCP (simulado)"]
+```
+
+*Figura 1 — Visão geral da solução na Sprint 4: celulares na maquete, ESP32 trocando dados com o site por Wi-Fi e o totem com QR Code e semáforo.*
+
+---
+
+## 3. Alinhamento ao desafio GoodWe
+
+Cada ponto do desafio e a parte da solução que o resolve:
+
+| Ponto do desafio | Como a solução resolve | Onde está |
+|---|---|---|
+| **Atender mais carros do que a instalação suporta** | `PowerManager` reparte o limite do posto (33 kW) entre todas as sessões, com peso por categoria de usuário. Do 4º carro em diante todos recebem menos potência, **nenhum é desligado**. | `power_manager.py` |
+| **Proteger o hardware** | Piso de 4,2 kW por conector (mínima trifásica do HCA G2). Se `n × 4,2 kW` não cabe no limite, a conexão é recusada com explicação, em vez de derrubar o posto. | `power_manager.py` |
+| **Tecnologia compatível GoodWe** | Hardware de referência **GW11K-HCA-20** (AC, 11 kW). Comunicação por **Modbus TCP**, porta 502, com os registradores documentados do HCA G2 (10015, 10016, 10017, 10025, 10026, 10029, 10060). | `modbus_simulator.py` |
+| **Deslocar consumo do horário de pico** | Tarifa dinâmica em três eixos: pico (+50%), alta demanda (+30%) e categoria do usuário (−15% / −10%). A tarifa é fixada na conexão. | `pricing_engine.py` |
+| **Energia renovável (exemplo do enunciado)** | O servidor aceita um **orçamento de potência vindo de geração solar** (`POST /api/energia`, com geração e consumo ou kW direto), reduz e devolve potência aos carros nos dois sentidos e é coberto por testes. | `app.py`, `power_manager.py` |
+| **Informar o motorista** | **Mapa em tempo real** no site, com cada posto em uma cor de status (verde disponível, amarelo em redistribuição, vermelho lotado), e **semáforo físico** no totem, que segue a ocupação real do posto. | `templates/mapa.html`, `esp32.py`, firmware |
+| **Integrar o físico ao digital** | ESP32 + INA219 medem as portas e informam o site; retirar o cabo encerra a recarga; o site devolve a cor do semáforo. | `esp32.py`, `firmware/`, `/api/esp32/portas` |
+| **Atender o motorista no posto** | **Modo Totem**: tela de autoatendimento de um conector, login por QR Code lido no celular, acompanhamento e pagamento pelo celular. | `totem.py`, `templates/totem_*.html` |
+| **Monetizar e fidelizar** | Carteira NexusCoin com 10% de cashback, reserva com sinal e recarga sem cadastro **pré-paga** (sinal de R$ 50,00; a sobra é devolvida). | `wallet.py`, `reservations.py`, `billing.py`, `avulso.py` |
+| **Operar o posto** | Painel do operador com potência por posto, sessões ativas, log de quadros Modbus, estado das portas físicas (`/esp32`), receita e exportação em CSV. | `/admin`, `/dashboard`, `/modbus-log`, `/esp32` |
+
+---
+
+## 4. Arquitetura final e integração
+
+### 4.1 Visão geral
+
+A solução tem quatro camadas que conversam entre si:
+
+1. **Experiência do motorista:** celulares (carros simulados), totem do posto (QR Code + semáforo), site com mapa, reserva, pagamento e carteira.
+2. **Maquete do mini eletroposto:** ESP32, 3 sensores INA219, 3 portas USB-C e 3 LEDs, alimentados por fonte de 12 V / 30 A (seção 4.2).
+3. **Sistema ChargeGrid (Python/Flask):** regras de potência, tarifa, cobrança, histórico e a ponte com o ESP32.
+4. **Equipamento de referência:** GoodWe GW11K-HCA-20 via Modbus TCP (simulado).
+
+### 4.2 Hardware da maquete
+
+A maquete reproduz, em escala reduzida, o posto da Paulista (P1) com 3 carregadores: cada porta USB-C entrega energia real a um celular, que faz o papel do carro. As portas 1, 2 e 3 correspondem aos conectores **P1-C1, P1-C2 e P1-C3** do site.
+
+| Componente | Função na maquete |
+|---|---|
+| **ESP32** | Lê as 3 portas a cada 1,5 s, envia o resultado ao servidor por Wi-Fi (HTTP/JSON) e acende o LED da cor que o servidor devolve. Sem resposta, usa uma regra local pelos carros detectados. |
+| **3 × INA219** | Um sensor por porta (cada um com seu par de pinos I²C): mede corrente e tensão do que o celular consome. |
+| **3 × LED** | Semáforo do totem (vermelho, amarelo e verde). |
+| **Módulo step-down USB Quick Charge** | Reduz os 12 V da fonte para a tensão de carga do celular, com negociação Quick Charge. |
+| **Conector fêmea USB-C** | Ponto de recarga onde o celular ("carro") é conectado. |
+| **Fonte 12 V / 30 A** | Alimentação do conjunto (até 360 W). |
+| **Conectores Wago de 5 e 10 vias** | Distribuição de positivo e negativo entre os módulos, sem solda. |
+| **Cabos jumper** | Ligações de sinal entre ESP32, sensores e LEDs. |
+
+```mermaid
+flowchart LR
+  F["Fonte 12 V · 30 A"] --> W["Conectores Wago"] --> SD["Step-down USB QC"] --> I["3 × INA219<br/>um por porta"] --> U["3 × USB-C"] --> P["Celulares"]
+  I -. "I²C" .-> E["ESP32"]
+  E -. "GPIO" .-> L["3 × LED do totem"]
+  E <-. "Wi-Fi · HTTP/JSON" .-> S["Servidor ChargeGrid"]
+```
+
+*Figura 2 — Alimentação, sensores e comunicação da maquete.*
+
+### 4.3 Totem do posto: QR Code e semáforo
+
+O totem do posto tem duas funções. O **QR Code** leva o motorista ao celular: quem tem conta entra pelo pareamento por QR (sem digitar senha na tela pública) e quem não tem conta informa só a placa e paga um sinal de R$ 50,00. Em ambos os casos o motorista acompanha, encerra e paga pelo navegador do celular, sem instalar aplicativo. O **semáforo** é a ideia inicial do projeto: mostra o estado do posto em uma cor, para o motorista decidir sem precisar entender o que acontece por trás. É a versão física do status que o mapa do site já mostra, na mesma escala de três cores.
+
+A cor segue a **ocupação do posto**, isto é, a potência em uso dividida pelo limite de 33 kW:
+
+| Cor | Ocupação do posto | Significado para o motorista |
+|---|---|---|
+| 🟢 **Verde** | abaixo de 50% | Há folga e potência plena. Pode carregar. |
+| 🟡 **Amarelo** | de 50% até menos de 99,9% | O posto está enchendo. Ainda cabem carros, e a potência é dividida entre eles. |
+| 🔴 **Vermelho** | 99,9% ou mais (posto no limite) | Posto cheio: um novo carro obriga a redistribuir a potência, e todos carregam mais devagar. |
+
+Com carros de 11 kW em um posto de 33 kW, isso significa: até 1 carro, verde; 2 carros, amarelo; 3 ou mais, vermelho. A regra vale para qualquer sessão do posto, venha do totem físico, do app ou do operador.
+
+```mermaid
+flowchart TD
+  A(["Servidor calcula a ocupação<br/>do posto (kW em uso ÷ 33 kW)"]) --> B{"Ocupação ≥ 99,9%?"}
+  B -- sim --> R(["VERMELHO · posto no limite"])
+  B -- não --> C{"Ocupação ≥ 50%?"}
+  C -- sim --> Y(["AMARELO"])
+  C -- não --> G(["VERDE"])
+```
+
+*Figura 3 — Como a cor do semáforo é escolhida. Sem resposta do servidor, o ESP32 usa a regra local: 0–1 carro verde, 2 amarelo, 3 vermelho.*
+
+### 4.4 Arquitetura de software
+
+Arquitetura modular em camadas, sem dependências circulares e sem regra de negócio na camada web.
 
 ```
- [1]  Aplicativo web        mapa, recarga, carteira e pagamento
- [2]  Gestao de sessoes     menu de terminal (Estruturas de Dados)
- [3]  Rodar os testes       suite completa no terminal
- [4]  Sair
+models.py               Entidades e enums (ChargingSession, SessionStatus, UserType)
+   ↑
+algoritmos.py           Busca e ordenação manuais + estatísticas (só stdlib)
+   ↑
+session_manager.py      Ciclo de vida das sessões e acúmulo de energia
+   ↑
+power_manager.py        Controle de demanda: limite, throttle, rebalanceamento, orçamento solar
+   ↑
+modbus_simulator.py     Quadros Modbus TCP (registradores HCA G2)
+
+pricing_engine.py       Tarifação dinâmica em 3 eixos
+esp32.py                Ponte com o hardware: validação, presença, desplugue, semáforo
+db.py                   Persistência SQLite (stdlib) — carteira, reservas, histórico
+auth.py · wallet.py · reservations.py · billing.py · avulso.py · veiculos.py · totem.py · qr.py
+   ↑
+app.py                  Camada web Flask — rotas, validação e orquestração
+menu.py                 Camada de terminal — mesmo sistema, sem Flask
 ```
 
-A opção 1 sobe o servidor e abre o navegador sozinho.
+```mermaid
+flowchart TD
+  A(["Carro escolhe o conector"]) --> B{"Conector livre?"}
+  B -- não --> X1["Recusa: conector ocupado"]
+  B -- sim --> C{"Soma cabe no limite do posto (33 kW)?"}
+  C -- sim --> P["Potência plena (até 11 kW)"]
+  C -- não --> D{"n × 4,2 kW cabe no limite?"}
+  D -- não --> X2["Recusa com mensagem explicando o motivo"]
+  D -- sim --> R["Redistribui por peso<br/>Padrão 1,00 · Corp. 1,10 · Assin. 1,20"]
+  R --> W["Escreve nos registradores Modbus<br/>10029 · 10025 · 10060"]
+  P --> S(["Sessão carregando"])
+  W --> S
+```
 
-### macOS
+*Figura 4 — Decisão de potência, do carro que chega até a sessão carregando.*
 
-Dois cliques em **`iniciar.command`**: o mesmo menu do `iniciar.bat`. As
-dependências ficam num ambiente virtual próprio (`.venv/`), criado na primeira
-vez. Se o macOS bloquear a abertura: botão direito → Abrir → Abrir. Se perguntar
-sobre conexões de entrada, clique em Permitir (o celular e o ESP32 acessam o Mac
-pela rede).
+**Decisão de potência.** Quando o carro que chega não cabe, o sistema redistribui. `_target_por_peso` reparte os 33 kW entre todas as sessões usando um peso por categoria (Padrão 1,00 · Corporativo 1,10 · Assinante 1,20). Se `n × 4,2 kW` já não cabe, a conexão é recusada com mensagem explicativa.
 
-### Qualquer sistema
+**Duas vidas da sessão.** Enquanto carrega, a sessão vive em memória; quando o motorista paga, é gravada no SQLite. Isso evita escrita em disco a cada ciclo e mantém o histórico após reiniciar.
+
+**O pagamento libera o conector.** Com conta, encerrar a recarga (pelo app, pelo totem, pelo celular ou retirando o cabo) interrompe a energia e redivide a potência na hora, mas o conector fica **retido** até o pagamento ser confirmado. Na recarga sem conta, que é pré-paga, o conector é liberado ao fim da recarga.
+
+```mermaid
+flowchart LR
+  A["1 · Início<br/>conecta o carro"] --> B["2 · Carregando<br/>energia e custo em memória"] --> C["3 · Encerra<br/>energia interrompida<br/>conector segue ocupado"] --> D["4 · Pagamento<br/>NexusCoin, Pix ou cartão"] --> E["5 · Pago<br/>grava no SQLite<br/>libera o conector<br/>rebalanceia"]
+```
+
+*Figura 5 — Ciclo de vida da sessão: memória enquanto carrega, banco depois de paga.*
+
+### 4.5 Integração com o equipamento GoodWe
+
+O GW11K-HCA-20 fala **Modbus TCP** na porta 502. Em mentoria com a GoodWe confirmamos que a linha HCA G2 não suporta OCPP, por isso o sistema usa Modbus.
+
+| Registrador | Função | Acesso |
+|:-:|---|:-:|
+| 10015 | Potência de recarga (÷10 = kW) | Leitura |
+| 10016 | Energia da sessão (÷10 = kWh) | Leitura |
+| 10017 | Status da estação | Leitura |
+| 10025 | Gestão dinâmica de carga | Leitura/Escrita |
+| 10026 | Corrente do disjuntor (A) | Leitura/Escrita |
+| 10029 | Potência máxima de recarga | Leitura/Escrita |
+| 10060 | Liga/desliga recarga | Leitura/Escrita |
+
+O `modbus_simulator.py` monta o quadro ADU completo (cabeçalho MBAP + PDU), registra cada quadro num log consultável e o exibe em `/modbus-log`. Exemplo, habilitando o carregamento do conector P1-C1:
+
+```
+TX | FC06 Write | Reg 10060 | Data: ['0x0002']
+HEX: 00 01 00 00 00 06 01 06 27 4C 00 02
+```
+
+> **Escopo da integração:** o protocolo e os registradores são os do HCA G2, mas **não tivemos acesso a um carregador GoodWe real**. Em todas as Sprints a comunicação com o carregador foi **simulada em software** (`modbus_simulator.py`), e na maquete a recarga é representada em escala por USB-C. Os quadros Modbus seguem o formato real, então a troca do simulador por um equipamento de verdade não exige mudar as regras de negócio.
+
+### 4.6 Integração entre a maquete e o site
+
+A maquete conversa com o site de verdade. A cada 1,5 s o ESP32 envia um `POST /api/esp32/portas` com a corrente e a tensão das 3 portas, autenticado por um token no cabeçalho `X-ESP32-Token`. O servidor valida a mensagem, decide a presença e responde com a cor do semáforo.
+
+```mermaid
+flowchart LR
+  I["3 × INA219<br/>corrente e tensão"] --> E["ESP32<br/>JSON a cada 1,5 s"]
+  E -- "POST /api/esp32/portas" --> S["Servidor ChargeGrid<br/>valida · presença · desplugue · ocupação"]
+  S -- "cor do semáforo" --> L["ESP32 acende o LED"]
+  S --> P1["/esp32<br/>painel do operador"]
+  S --> P2["/totem/fisico<br/>tela do totem"]
+```
+
+*Figura 6 — Comunicação entre o ESP32 e o servidor.*
+
+| Regra | Como funciona |
+|---|---|
+| **Mapeamento** | Porta 1 → P1-C1, porta 2 → P1-C2, porta 3 → P1-C3 (posto Paulista). |
+| **Presença** | Corrente medida de 20 mA ou mais. É decidida no servidor, então calibrar não exige regravar o firmware. |
+| **Plugar o cabo** | Aponta a tela do totem físico para o conector. A sessão nasce quando o motorista se identifica: pelo QR Code (com conta) ou pela placa (sem conta). |
+| **Retirar o cabo** | Encerra a recarga ativa depois de 3 leituras livres seguidas (≈ 4,5 s), para um mau contato não derrubar a recarga. Só vale para recargas em que a porta já foi vista plugada. Com conta, o conector fica retido até o pagamento; sem conta, a sobra do sinal é devolvida. |
+| **Sensor mudo** | Se um INA219 não responde, a porta é reportada como "sem leitura", e não como livre. |
+| **ESP32 offline** | Sem mensagem por mais de 10 s, o servidor dá o totem como offline. |
+| **Potência medida** | O servidor converte 1 W medido em 1 kW na aplicação (celular no lugar do carro), com teto de 11 kW. A medição é gravada e visível em `/esp32`; por padrão a cobrança segue a potência simulada do conector, e `CHARGEGRID_COBRANCA_MEDIDA=1` passa a cobrar pela medida. |
+| **Segurança** | Mensagens são validadas campo a campo (faixas de corrente e tensão, tipos, portas repetidas) e o token é comparado em tempo constante. Para a apresentação, o token deve ser definido em `CHARGEGRID_ESP32_TOKEN`. |
+
+Há ainda um **simulador do ESP32** (`tools/simular_esp32.py`), que envia ao servidor o mesmo JSON do firmware com as portas escolhidas como plugadas, para testar sem o hardware.
+
+### 4.7 Novidades do software nesta Sprint
+
+| Novidade | O que faz |
+|---|---|
+| **Ponte com o ESP32** | `esp32.py` e as rotas `/api/esp32/portas`, `/api/esp32/estado`, `/esp32` e `/totem/fisico`: recebem o estado das portas, detectam o desplugue e devolvem a cor do semáforo. |
+| **Modo App / Modo Totem** | Alterna entre a experiência de celular do motorista e a tela vertical de autoatendimento do totem. O totem controla um conector, não mostra mapa nem outros postos, e esquece quem usou ao terminar. |
+| **Pareamento por QR Code** | O totem gera um QR dinâmico (validade de 180 s, uso único). O celular lê, confirma o login e o totem entra com a conta, sem senha digitada numa tela pública. |
+| **Veículos por conta** | Vários carros por conta, cadastro de carro avulso e bloqueio de duas recargas ativas para a mesma placa. |
+| **Recarga sem conta pré-paga** | Visitante informa a placa e paga um sinal de R$ 50,00. A recarga termina sozinha ao consumir o valor pago, nunca cobra acima dele, e encerrar antes (no totem, no celular ou retirando o cabo) devolve o restante. |
+| **Pagamento com conta** | O conector só é liberado depois de pago; até lá o valor fica como pendente na Carteira (acima de R$ 100 ou 7 dias, novas recargas ficam bloqueadas). |
+| **Acompanhamento omnichannel** | O celular acompanha a recarga em tempo real, encerra e paga; o totem detecta o pagamento feito no celular e avança sozinho para o recibo. |
+| **Orçamento de potência solar** | `POST /api/energia` (token `X-Token`) recebe geração e consumo (ou kW direto) de um controlador solar e aplica um novo orçamento ao posto, reduzindo e devolvendo potência aos carros nos dois sentidos. |
+| **Segurança e resiliência** | Cabeçalhos defensivos (OWASP), proteção contra open redirect, correção de clock skew na duração da sessão, páginas de erro 404/500 e buffer circular no histórico de alocações. |
+| **Busca e ordenação no relatório** | `merge_sort` (O(n log n)) e busca sequencial aplicados às tabelas do relatório. |
+
+```mermaid
+flowchart LR
+  A["Totem gera QR<br/>token único · 180 s"] --> B["Celular lê o QR<br/>e confirma o login"]
+  B --> C["Totem consome o token<br/>um QR = um login"]
+  C --> D["Escolhe conector<br/>e veículo"]
+  D --> E["Recarga em andamento"]
+  E --> F["Celular acompanha,<br/>encerra e paga"]
+  F --> G["Totem detecta o pagamento<br/>e mostra o recibo"]
+  G --> H["Totem esquece a conta"]
+```
+
+*Figura 7 — Pareamento entre totem e celular.*
+
+---
+
+## 5. Justificativa de alinhamento à disciplina
+
+O projeto trabalha duas frentes que se encontram no mesmo código: **engenharia de software** e **gestão de energia**.
+
+| Conteúdo da disciplina | Onde aparece no projeto |
+|---|---|
+| **Modularização** | 20 módulos Python com responsabilidades separadas (potência, tarifa, carteira, reservas, billing, totem, veículos, hardware); o acesso ao banco passa pelos helpers de `db.py`. |
+| **Estruturas de dados e algoritmos** | `busca_sequencial` em `get_session` e na busca do relatório, `merge_sort` na ordenação das tabelas do relatório e `insertion_sort` em `rebalance`, rodando em produção; busca binária e bubble sort no menu, com contagem de operações. |
+| **Dicionários, tuplas, JSON** | Mapa de registradores Modbus, postos, conectores e mapeamento porta → conector em dicionários; `/api/status` e `/api/esp32/portas` trocam estado em JSON. |
+| **Integração com sensores e IoT** | INA219 (I²C), ESP32 (Wi-Fi, HTTP/JSON), validação de mensagens, token e detecção de desplugue com histerese. |
+| **Tratamento de erros** | Banco ausente ou corrompido abre com histórico vazio; mensagens inválidas do ESP32 são recusadas com texto explicativo; sensor mudo vira "sem leitura". |
+| **Persistência e eficiência** | Sessões ativas em memória, só as pagas vão ao disco. |
+| **Gestão de energia** | Redistribuição proporcional (*load shedding* proporcional), prioridade por classe, tarifa por horário de pico e orçamento dinâmico por geração solar. |
+| **Testes automatizados** | Suíte de 414 testes `pytest` sobre tarifa, potência, reservas, billing, veículos, totem, ESP32, algoritmos e rotas, rodando contra banco temporário. |
+
+---
+
+## 6. Resultados
+
+### 6.1 Resultados medidos no sistema
+
+Os números abaixo saíram de executar o sistema, não de estimativa.
+
+**Orquestração de potência num posto de 33 kW** (carros de 11 kW, um de cada vez):
+
+| Carros conectados | Potência por carro | Carga total | Ocupação |
+|:-:|:-:|:-:|:-:|
+| 1 | 11,0 kW | 11,0 kW | 33,3% |
+| 2 | 11,0 kW | 22,0 kW | 66,7% |
+| 3 | 11,0 kW | 33,0 kW | 100,0% |
+| 4 | 8,25 kW | 33,0 kW | 100,0% |
+| 5 | 6,6 kW | 33,0 kW | 100,0% |
+
+A carga total nunca passa de 33,0 kW e nenhum conector cai abaixo do piso de 4,2 kW. Com categorias diferentes num posto cheio, medimos 7,47 kW para o assinante, 6,84 kW para o corporativo e 6,22 kW para cada um dos três padrão, somando os mesmos 33 kW.
+
+**Tarifação** (base R$ 1,20/kWh):
+
+| Hora | Categoria | Posto vazio | Posto lotado |
+|---|---|---:|---:|
+| 14h | Padrão | R$ 1,20 | R$ 1,56 |
+| 14h | Assinante | R$ 1,02 | R$ 1,326 |
+| 19h (pico) | Padrão | R$ 1,80 | R$ 2,34 |
+| 19h (pico) | Assinante | R$ 1,53 | R$ 1,989 |
+
+**Histórico acumulado** (base sintética gerada pelas mesmas regras do produto, 27/07/2026 a 09/09/2026):
+
+| Medida | Valor |
+|---|---:|
+| Sessões pagas | 180 |
+| Receita faturada | R$ 4.205,76 |
+| Energia entregue | 2.878,23 kWh |
+| Duração média | 102,5 min |
+
+**Comunicação Modbus:** o ciclo de cinco sessões gerou 31 quadros Modbus.
+
+**Testes:** suíte de **414 testes automatizados** com `pytest`, cobrindo tarifa, redistribuição de potência, reservas, billing, veículos, totem com e sem conta, ponte com o ESP32, algoritmos, rotas e segurança, rodando contra um banco temporário.
+
+### 6.2 Resultados da maquete (protótipo de bancada)
+
+Parâmetros e comportamentos do protótipo físico integrado ao site:
+
+| Item | Valor |
+|---|---|
+| Portas monitoradas | 3 (P1-C1, P1-C2, P1-C3) |
+| Ciclo de leitura e envio | 1,5 s |
+| Ruído do sensor sem carga | ±0,4 mA |
+| Limiar de presença | 20 mA |
+| Confirmação de desplugue | 3 leituras livres seguidas (≈ 4,5 s) |
+| ESP32 considerado offline | sem mensagem por mais de 10 s |
+| Semáforo (carros de 11 kW em 33 kW) | 1 carro verde · 2 amarelo · 3 vermelho |
+| Escala da demonstração | 1 W medido na porta = 1 kW na aplicação (teto de 11 kW) |
+
+O comportamento esperado do ciclo completo foi o que montamos para a demonstração: o celular é plugado, o motorista se identifica, o semáforo muda conforme os carros entram, e retirar o cabo encerra a recarga e leva o totem ao pagamento.
+
+### 6.3 Resultados qualitativos
+
+- O motorista passa a ter **a informação no ponto de decisão**: ele vê no totem se vale a pena carregar agora, sem abrir aplicativo.
+- A tela do posto explica por que a potência não é 11 kW, então nenhum carro "some" nem é interrompido sem aviso.
+- O operador enxerga potência, receita, frames Modbus, sessões e o estado das portas físicas num painel único.
+- A maquete torna a solução **demonstrável de forma tátil**: o público pluga celulares e vê o semáforo e o site reagirem.
+
+---
+
+## 7. Diferenciais inovadores
+
+| Diferencial | Como aparece |
+|---|---|
+| **Algoritmos inteligentes** | Redistribuição ponderada por categoria sob restrição de limite e piso físico; tarifa dinâmica em três eixos fixada na conexão; orçamento de potência dinâmico por geração solar; busca e ordenação implementadas à mão em uso real. |
+| **Automação avançada** | Rebalanceamento automático ao liberar conector; reserva com sinal que expira sozinha; **encerramento automático da recarga ao retirar o cabo**; recarga pré-paga que para sozinha ao consumir o valor pago; escrita automática nos registradores Modbus. |
+| **Interface amigável** | Semáforo de três cores que dispensa leitura; mapa em tempo real; login por QR Code sem senha no totem; acompanhamento e pagamento pelo celular, com ou sem conta; tema claro/escuro com contraste WCAG AA e foco de teclado. |
+| **Visualização de dados** | Dashboard com barra de ocupação por posto, mapa com estado dos postos, painel das portas físicas (`/esp32`), relatório consolidado e exportação CSV. |
+| **Solução física integrada** | Maquete de mini eletroposto com celulares como carros, sensores de corrente e semáforo que reage ao estado real do posto no site. |
+
+---
+
+## 8. Avaliação crítica: sustentabilidade e inovação
+
+### Ganhos
+
+- **Menos infraestrutura para a mesma frota.** Atender cinco carros de 11 kW exigiria 55 kW de entrada. Com orquestração, os mesmos cinco carregam dentro dos 33 kW já instalados, ou seja, **40% menos capacidade contratada** (22 de 55 kW). Isso significa menos obra, menos cobre e menos pico de demanda sobre a rede.
+- **Deslocamento de consumo.** A tarifa de pico (+50%) e de alta demanda (+30%) empurra o consumo para fora do horário de maior estresse da rede (18h–23h), o mesmo princípio da tarifa branca.
+- **Pronto para energia renovável.** O posto já aceita um orçamento de potência vindo de geração solar e redistribui nos dois sentidos: se a geração cai, os carros recebem menos; se sobe, voltam à potência cheia.
+- **Vida útil do hardware.** O piso de 4,2 kW evita ciclos de liga/desliga no HCA G2; reduzir potência de forma contínua é mais suave que cortar.
+- **Eficiência computacional.** Sessão ativa em memória e só a paga no disco evita escrita constante, o mesmo princípio de não gastar recurso onde não precisa.
+- **Relevância social.** Decisão transparente para o motorista e acesso sem cadastro (sinal de R$ 50,00, com devolução da sobra) reduzem a barreira de uso.
+
+### Limitações (o que ainda não foi feito)
+
+- **Sem controlador solar físico.** A API de orçamento solar (`/api/energia`) está implementada e testada, mas a maquete não inclui um controlador solar real. O limite de 33 kW é um parâmetro fixo enquanto não houver essa medição. Por isso o projeto **não reduz emissões por conta própria**: o ganho ambiental é de infraestrutura e de gestão de pico, e não calculamos redução de CO₂ por falta de fonte confiável.
+- **Detecção de presença por corrente.** O ruído do sensor é de ±0,4 mA, mas um celular com bateria cheia puxa cerca de 0,7 mA, indistinguível de "desplugado" com o limiar de 20 mA. Na demonstração usamos celular com bateria baixa ou carga fixa.
+- **Cobrança por potência simulada.** A potência medida é gravada, mas por padrão a cobrança segue os 11 kW simulados, para a demonstração ser previsível.
+- **Wi-Fi do ESP32.** A queda de Wi-Fi é uma limitação conhecida: as recargas seguem até alguém encerrar ou o ESP32 voltar.
+- **Dados de uso simulados.** O histórico de 180 sessões foi gerado sinteticamente pelas regras do produto, então receita e energia mostram o funcionamento, não demanda real.
+- **Sem carregador GoodWe real.** Não tivemos acesso ao equipamento. A comunicação Modbus foi validada contra o simulador e a maquete usa USB-C em escala.
+- **Pagamento e autenticação são mockups acadêmicos.** Pix, cartão e contas de demonstração são simulados, e os pagamentos pendentes vivem na memória do servidor.
+- **Token de desenvolvimento.** O ESP32 usa um token padrão de desenvolvimento enquanto `CHARGEGRID_ESP32_TOKEN` não é definido; em rede aberta, defini-lo é obrigatório.
+
+### Próximos passos
+
+1. Ligar um controlador solar físico (Raspberry Pi Pico W) à API `/api/energia`, que já existe.
+2. Guardar os pagamentos pendentes no banco, em vez da memória do servidor.
+3. Validar a comunicação Modbus em um GW11K-HCA-20 real.
+4. Dividir o `app.py` em Blueprints do Flask.
+
+---
+
+## 9. Referências, ferramentas e tecnologias
+
+| Categoria | Item |
+|---|---|
+| **Hardware de referência** | GoodWe GW11K-HCA-20 (AC, 11 kW, linha HCA G2) |
+| **Hardware da maquete** | ESP32, 3 sensores INA219, 3 LEDs, módulo step-down USB Quick Charge, conectores USB-C, fonte 12 V / 30 A, conectores Wago e cabos jumper |
+| **Firmware** | Arduino IDE (C++), bibliotecas Adafruit INA219 e BusIO, Wi-Fi 2,4 GHz, HTTP/JSON (firmware 0.3.0) |
+| **Protocolos** | Modbus TCP (porta 502, Unit ID 0x01, simulado); HTTP/JSON entre ESP32 e servidor; I²C entre ESP32 e sensores |
+| **Linguagem e backend** | Python 3.11+, Flask |
+| **Persistência** | SQLite (`sqlite3` da biblioteca padrão, sem ORM) |
+| **Frontend** | HTML5, CSS3, JavaScript puro |
+| **Mapa** | Leaflet + OpenStreetMap |
+| **Testes** | pytest |
+| **Simulação de circuito** | Wokwi — https://wokwi.com/projects/475464686061787137 |
+| **Mentoria** | Mentoria GoodWe (confirmação de que a linha HCA G2 não suporta OCPP) |
+
+---
+
+## 10. Como executar
+
+**Pré-requisito:** Python 3.11+.
 
 ```bash
 pip install flask pytest
@@ -80,460 +422,47 @@ python menu.py     # menu de terminal (Estruturas de Dados)
 pytest -q          # 414 testes
 ```
 
-Ao iniciar, o terminal imprime o endereço e as contas de demonstração com os
-saldos, para não ser preciso procurar a senha no meio de uma apresentação:
+No Windows, dois cliques em `iniciar.bat` abre um menu com aplicativo web, gestão de sessões e testes.
+
+**Contas de demonstração** (senha `1234`):
+
+| Usuário | Categoria | Saldo | Para demonstrar |
+|---|---|---:|---|
+| `amanda` | Assinante | 100 NC | Recarga, pagamento e cashback |
+| `allan` | Corporativo | 5 NC | Saldo insuficiente e recarga da carteira |
+| `jose` | Padrão | 0 NC | Carteira zerada, Pix ou cartão |
+| `luiz` | Assinante | 150 NC | Pareamento celular-totem por QR Code e recarga no totem |
+| `mylon` | Operador | 10.000 NC | Painel, log Modbus, estado das portas, exportação |
+
+O Modo Totem abre em `/totem` (ou pelo botão de alternância de modo no topo). O mapa usa tiles do OpenStreetMap e precisa de internet; sem conexão, a lista de postos continua funcionando.
+
+**Totem físico (ESP32):**
+
+1. Copie `firmware/totem_esp32/config.example.h` para `config.h` e preencha `WIFI_SSID`, `WIFI_SENHA`, `SERVIDOR_IP` (o IP da linha "Rede" que o servidor mostra ao iniciar) e `TOKEN_ESP32`.
+2. Envie `totem_esp32.ino` ao ESP32 pela Arduino IDE (placa ESP32, Wi-Fi de 2,4 GHz).
+3. Suba o servidor com `python app.py`. Para trocar o token de desenvolvimento, defina `CHARGEGRID_ESP32_TOKEN` com o mesmo valor do `config.h`.
+4. Abra `/totem/fisico` (atalho "Totem físico (ESP32)" no rodapé do totem) e `/esp32` para acompanhar as portas.
+5. Sem o hardware, use o simulador: `python tools/simular_esp32.py --plugadas 1 3`.
+
+---
+
+## 11. Estrutura do repositório
 
 ```
-╔═══════════════════════════════════════════════════════════╗
-║ ⚡ ChargeGrid Intelligence — NexusCharge                 ║
-║ Sprint 3 · FIAP + GoodWe EV Challenge 2026               ║
-╠═══════════════════════════════════════════════════════════╣
-║ Local  http://localhost:5001                             ║
-║                                                          ║
-║ Contas de demonstração — senha 1234 para todas:          ║
-║   amanda  assinante        100,00 NC                     ║
-║   allan   corporativo        5,00 NC                     ║
-║   jose    padrão             0,00 NC                     ║
-║   luiz    assinante        150,00 NC                     ║
-║   mylon   operador      10.000,00 NC                     ║
-╚═══════════════════════════════════════════════════════════╝
+.
+├── README.md
+├── app.py · menu.py · power_manager.py · pricing_engine.py · esp32.py · ...   código do sistema
+├── templates/ · static/                       site
+├── firmware/totem_esp32/                      firmware do ESP32
+├── tools/simular_esp32.py                     simulador do ESP32
+├── test_chargegrid.py                         testes
+└── docs/
+    ├── ChargeGrid_Sprint4_Documentacao.pdf
+    └── entregaveis_Sprint4.txt
 ```
 
-O arquivo `chargegrid.db` é criado sozinho na primeira execução. Para zerar
-tudo, basta apagá-lo — ou usar **Restaurar estado de demonstração** no painel
-do operador.
-
-> **Nota:** o mapa interativo usa tiles do OpenStreetMap e precisa de conexão
-> com a internet. Sem conexão, um aviso é exibido e a navegação pela lista de
-> postos continua funcionando.
-
 ---
 
-## 👤 Contas de demonstração
+## 12. Licença
 
-Senha de todas: **`1234`**. Cada conta demonstra um caminho diferente do produto.
-
-| Usuário | Nome | Categoria | Saldo inicial | Veículos | Para que serve na demonstração |
-|---|---|---|---:|---|---|
-| `amanda` | Amanda Ribeiro | Assinante (−15%) | 100,00 NC | `BRA2E19`, `RIO4F22` | Caminho feliz no Modo App: inicia com recarga em andamento no conector C4 da Faria Lima (`BRA2E19`), encerra, paga com NexusCoin, recebe 10% de cashback e inicia nova recarga com seu segundo carro (`RIO4F22`) |
-| `allan` | Allan Souza | Corporativo (−10%) | 5,00 NC | `SPA7C31` | Saldo insuficiente: bloqueio da reserva, recarga da carteira e retomada do pagamento |
-| `jose` | José Fino | Padrão | 0,00 NC | `JSF1A23` | Carteira zerada: estado vazio do extrato, tarifa cheia e pagamento por Pix ou cartão |
-| `luiz` | Luiz Otávio | Assinante (−15%) | 150,00 NC | `LUZ9B87` | Cartão salvo (Visa final 4821); demonstração do pareamento celular-totem via QR Code e recarga no totem físico |
-| `mylon` | Mylon Freixo | Operador | 10.000,00 NC | `MYL0N26` | Painel administrativo (`/admin`), controle de demanda/throttle ao vivo, log Modbus, suíte de testes e exportação CSV |
-
-Na tela de login, clicar em uma conta preenche e envia o formulário.
-
-> **Regra de integridade veicular:** cada conta pode possuir múltiplos carros cadastrados e adicionar novos veículos avulsos no formulário de recarga (com opção de salvar para futuras recargas ou carregar o carro de um terceiro). Por integridade física e operacional do sistema, **um mesmo veículo não pode ter duas recargas ativas simultaneamente**, sendo bloqueado com mensagem amigável caso tente nova sessão enquanto a anterior não for paga e liberada.
-
----
-
-## 🧭 Roteiro de demonstração (≈ 5 min, ao vivo)
-
-O roteiro completo da apresentação (falas, passo a passo dos aparelhos e plano B)
-fica fora do repositório, na pasta `Pitch GoodWe\Apresentacao ao vivo`. Resumo:
-
-### Parte 1 — App do motorista (`amanda`, só software)
-1. **Mapa de postos** → cada posto tem uma cor: Paulista verde (livre), Faria Lima amarelo (potência dividida), Berrini vermelho (lotado).
-2. **Faria Lima → C5 (VIP) → Iniciar Recarga VIP** → o BYD (`BRA2E19`) aparece bloqueado como "Carregando em P2-C4"; o Kwid (`RIO4F22`) é aprovado.
-3. **Voltar ao posto** → a potência foi redividida por prioridade: 6,0 · 6,0 · 6,6 · 7,2 · 7,2 kW (33 kW no total).
-4. **Encerrar o C5 → pagar com NexusCoin** → 10% de cashback. Com conta, o conector só é liberado depois do pagamento.
-5. **Painel do operador** (`mylon`, `/dashboard`) → "Decisões de potência" registra a redistribuição e o rebalanceamento. A lista de sessões se atualiza sozinha.
-
-### Parte 2 — Totem do posto (`/modo/totem`, abre no Paulista C4, só software)
-6. **Com conta:** "Entrar com conta existente" → QR → o celular confirma sem senha → "Olá, Luiz" → iniciar → encerrar e pagar no totem (cartão por aproximação) ou no celular.
-7. **Sem conta:** placa → sinal de R$ 50,00 → QR "Acompanhe no Celular" → encerrar pelo celular: o restante do sinal é devolvido.
-
-### Parte 3 — Totem físico (ESP32, portas 1–3 da Paulista)
-8. Rodapé do totem → **Totem físico (ESP32)** → plugar o celular-carro na porta 1 → login pelo QR → recarga a 11 kW simulados (a medição do sensor fica em `/esp32`) → tirar o cabo → o totem pede o pagamento.
-
----
-
-## 🏗️ Arquitetura
-
-Arquitetura modular em camadas, sem dependências circulares. Nenhuma regra de
-negócio vive na camada web.
-
-```
-iniciar.bat             Menu de inicialização para Windows (web · gestão · testes)
-iniciar.command         O mesmo menu para macOS
-
-models.py               Entidades e enums (ChargingSession, SessionStatus, UserType)
-   ↑
-algoritmos.py           Busca e ordenação manuais + estatísticas (só stdlib)
-   ↑
-session_manager.py      Ciclo de vida das sessões e acúmulo de energia
-   ↑
-power_manager.py        Controle de demanda: limite, throttle, rebalanceamento
-   ↑
-modbus_simulator.py     Simulação do protocolo Modbus TCP (registradores HCA G2)
-
-pricing_engine.py       Tarifação dinâmica em 3 eixos
-logica_recarga.py       Lógica de simulação do Sprint 1
-
-db.py                   Persistência SQLite (stdlib) — carteira, reservas, histórico
-auth.py                 Contas e autenticação (mockup acadêmico)
-wallet.py               Carteira NexusCoin: saldo, débito, crédito, cashback
-reservations.py         Reserva de conector com sinal e expiração preguiçosa
-billing.py              Composição da cobrança de uma sessão encerrada
-qr.py                   QR Code simulado em SVG (Pix)
-   ↑
-app.py                  Camada web Flask — rotas, validação e orquestração
-menu.py                 Camada de terminal — mesmo sistema, sem Flask
-templates/              29 telas e 3 parciais (Modo App e Modo Totem)
-static/                 favicon
-test_chargegrid.py      414 testes automatizados
-seed_historico.py       Gerador de histórico sintético para as análises
-```
-
-`app.py` e `menu.py` são dois pontos de entrada para o **mesmo** sistema: a
-mesma classe de sessão, a mesma lista dentro do `SessionManager`, os mesmos
-algoritmos. `menu.py` não importa Flask e roda sem nenhuma dependência
-instalada.
-
-Os módulos ficam lado a lado de propósito. O grafo de dependência é uma
-estrela em volta do `app.py` — ele importa **12 dos 15** outros módulos de
-produção; `models.py` é importado por 11, `db.py` por 5, `algoritmos.py` e
-`pricing_engine.py` por 3 cada, e todo o resto por 0, 1 ou 2. Os 16 módulos
-somam **35 arestas de import** entre si, e não existe subgrupo que converse
-mais consigo mesmo do que com o resto: dividir por tema deixaria a maioria dos
-imports atravessando a fronteira. Pasta que não esconde nada é gaveta, não
-camada.
-
-Virar um pacote `chargegrid/` esconderia todas elas — essa seria estrutura de
-verdade — ao custo de reescrever **233 linhas de import**, 197 delas na suíte
-de testes. Decidimos que não se paga nesta escala.
-
----
-
-## 💰 Regras de negócio
-
-### Controle de potência
-- Limite por posto: **33 kW** (3 conectores a 11 kW cabem; o 4º dispara throttle)
-- Piso por conector: **4,2 kW** (mínima trifásica do HCA G2)
-- Pesos de prioridade na redistribuição: Padrão 1,00 · Corporativo 1,10 · Assinante 1,20
-
-### Tarifação (R$/kWh)
-| Componente | Fator | Condição |
-|---|:-:|---|
-| Tarifa base | R$ 1,20 | sempre |
-| Horário de pico | × 1,50 | 18h–22h59 |
-| Alta demanda | × 1,30 | ocupação do posto ≥ 70% |
-| Desconto assinante | − 15% | categoria Assinante |
-| Desconto corporativo | − 10% | categoria Corporativo |
-| Taxa mínima | R$ 2,00 | piso por sessão |
-
-A tarifa é **fixada no momento da conexão** e não sofre reajuste retroativo.
-
-### NexusCoin
-| Regra | Valor |
-|---|---|
-| Paridade | 1 NexusCoin = R$ 1,00 |
-| Cashback ao pagar com NexusCoin | 10% do valor pago |
-| Cashback com Pix ou cartão | nenhum |
-| Sinal de reserva | R$ 10,00, debitados no ato |
-| Saldo negativo | proibido |
-
-### Reserva
-| Desfecho | Destino do sinal |
-|---|---|
-| Compareceu e iniciou a recarga | vira crédito e abate o pagamento |
-| Prazo de 15 min expirou | retido como taxa por bloqueio de conector |
-| Cancelou dentro do prazo | estorno integral |
-
-O abatimento nunca excede o subtotal: um sinal maior que o consumo zera a conta
-e o excedente **não** vira crédito na carteira — do contrário, reservar e
-carregar por um minuto seria uma forma de mover dinheiro de graça.
-
----
-
-## 🔌 Integração Modbus (registradores HCA G2)
-
-| Registrador | Função | Acesso |
-|:-:|---|:-:|
-| 10017 | Status da estação | Leitura |
-| 10015 | Potência de recarga (÷10 = kW) | Leitura |
-| 10016 | Energia da sessão (÷10 = kWh) | Leitura |
-| 10029 | Potência máxima de recarga | Leitura/Escrita |
-| 10025 | Gestão dinâmica de carga | Leitura/Escrita |
-| 10060 | Liga/desliga recarga | Leitura/Escrita |
-| 10026 | Corrente do disjuntor (A) | Leitura/Escrita |
-
----
-
-## 🗺️ Rotas
-
-### Modo App / Usuário (Mobile)
-| Método | Rota | Função |
-|---|---|---|
-| GET/POST | `/login` | Autenticação e seleção de conta de demonstração |
-| GET | `/logout` | Encerra a sessão de login |
-| GET | `/modo/<modo>` | Alterna entre Modo App e Modo Totem |
-| GET | `/` | Mapa de postos interativo |
-| GET | `/posto/<id>` | Conectores do posto, com reserva e encerramento |
-| GET | `/posto/<id>/carregador/<id>` | Formulário de recarga com seleção/cadastro de veículos |
-| POST | `/sessao` | Cria a sessão de recarga |
-| POST | `/api/reservar` | Reserva conector com débito de sinal (R$ 10,00) |
-| POST | `/api/reserva/cancelar` | Cancela reserva e estorna sinal integralmente |
-| POST | `/sessao/<id>/encerrar` | Encerra recarga (conector retido até confirmação de pagamento) |
-| GET | `/pagamento/<id>` | Tela de pagamento (NexusCoin, Pix, Cartão salvo) |
-| POST | `/pagamento/<id>/confirmar` | Efetiva pagamento, libera o conector e credita cashback |
-| GET | `/recibo/<id>` | Comprovante com contagem dinâmica de cashback e exportação |
-| GET | `/carteira` | Saldo, extrato auditável e recarga NexusCoin |
-| POST | `/carteira/recarregar` | Compra de créditos NexusCoin via Pix ou cartão |
-
-### Modo Totem / Autoatendimento (Tela touch vertical do totem físico)
-| Método | Rota | Função |
-|---|---|---|
-| GET | `/totem` | Tela inicial do totem físico com status dos conectores locais |
-| GET/POST | `/totem/configurar` | Configuração inicial do posto associado ao hardware do totem |
-| GET | `/totem/entrar` | Exibe QR Code dinâmico para pareamento com smartphone |
-| GET | `/totem/entrar/<token>/estado` | Polling de verificação de pareamento consumido pelo totem |
-| GET/POST | `/celular/parear/<token>` | Rota mobile de confirmação de pareamento do usuário com o totem |
-| GET | `/celular/parear/<token>/status` | Polling dinâmico de telemetria da recarga no smartphone pareado |
-| POST | `/celular/parear/<token>/encerrar` | Encerra a recarga pelo smartphone e direciona para quitação no app |
-| GET/POST | `/totem/veiculo` | Seleção de conector e veículo cadastrado na tela do totem |
-| GET/POST | `/totem/sem-conta` | Identificação por placa e conector para visitante sem cadastro |
-| GET/POST | `/totem/sem-conta/pagar` | Pagamento do sinal de R$ 50,00 (cartão por aproximação ou Pix) que libera a recarga pré-paga |
-| GET | `/totem/carregando` | Monitoramento vertical da recarga em andamento no conector do totem |
-| GET | `/totem/carregando/status` | Polling dinâmico de telemetria exibido no display do totem |
-| POST | `/totem/encerrar` | Encerra recarga diretamente na tela do totem |
-| GET | `/totem/pagamento/<id>/status` | Sincronização omnichannel: detecta pagamento móvel e avança tela do totem |
-| GET | `/totem/recibo/<id>` | Recibo do totem com acerto de consumo e estorno do saldo de sinal |
-| POST | `/totem/sair` | Desconecta a conta pareada do totem e retorna ao estado inicial |
-| GET | `/avulso/<token>` | Acompanhamento mobile da recarga avulsa de visitante |
-| GET | `/avulso/<token>/status` | Polling dinâmico de telemetria da recarga avulsa no smartphone |
-| POST | `/avulso/<token>/encerrar` | Encerra a recarga avulsa pelo smartphone do visitante |
-| POST | `/avulso/<token>/pagar-excedente` | Pagamento móvel do excedente (> R$ 50) liberando conector na hora |
-
-### Operador (Staff) e Integração IoT
-| Método | Rota | Função |
-|---|---|---|
-| GET | `/admin` | Hub central do operador |
-| GET | `/dashboard` | Painel de potência, ocupação e sessões ativas ao vivo |
-| POST | `/dashboard/nova-sessao` | Criação de sessão manual pelo operador |
-| POST | `/dashboard/encerrar` | Encerramento de sessão pelo painel |
-| GET | `/relatorio` | Relatório gerencial e financeiro consolidado. Busca e ordenação em Python: `?busca=&ordenar=&dir=&fonte=` |
-| GET | `/modbus-log` | Log de tráfego de frames industriais Modbus TCP |
-| GET | `/testes` · POST `/api/testes/run` | Suíte completa de testes executável no navegador |
-| GET | `/admin/export.csv` | Histórico de sessões em CSV |
-| POST | `/sessao/<id>/liberar` | Desbloqueio forçado de conector retido |
-| POST | `/admin/demo-reset` | Restauração completa do estado de demonstração |
-| GET | `/api/status` | Polling JSON (5 s) de telemetria e potência dos postos |
-| POST | `/api/energia` | Integração IoT solar (Raspberry Pi Pico W): aplica orçamento dinâmico bidirecional |
-
----
-
-## 🔌 Totem físico (ESP32) — protótipo de bancada
-
-Um ESP32 com 3 sensores de corrente (INA219) e 3 LEDs de semáforo simula o
-posto Paulista (P1): as portas físicas 1–3 são os conectores `P1-C1..C3`.
-Plugar um aparelho abre a recarga; desplugar encerra. Tudo roda sem alterar o
-fluxo do app — o ESP32 só envia leituras para `POST /api/esp32/portas`.
-
-**Como ligar**
-1. Copie `firmware/totem_esp32/config.example.h` para `config.h` (fica fora do
-   Git) e preencha `WIFI_SSID`, `WIFI_SENHA`, `SERVIDOR_IP` (o IP da linha
-   "Rede" que o servidor mostra ao iniciar) e `TOKEN_ESP32`.
-2. Envie `totem_esp32.ino` ao ESP32 pela Arduino IDE (placa e Wi-Fi **2,4 GHz**).
-3. Suba o servidor (`python3 app.py`). Se o IP do banner sair errado, force com
-   `CHARGEGRID_HOST_IP=<ip>`. Para trocar o token de desenvolvimento, defina
-   `CHARGEGRID_ESP32_TOKEN` (o mesmo valor do `config.h`).
-4. Abra `/modo/totem` em **um navegador** e o app/operador em **outro**: o modo
-   é guardado em cookie, então um navegador não faz os dois ao mesmo tempo.
-5. Em `/totem/fisico` (atalho "Totem físico (ESP32)" no rodapé do totem) a tela
-   acompanha as portas. Ao plugar, o motorista entra pelo QR (o celular confirma
-   com a própria conta, sem senha); quem não tem conta paga antes (pré-pago).
-   "Voltar ao totem" retorna ao totem comum, que por padrão controla o
-   **Paulista C4** — um conector só de software, fora das portas físicas.
-
-**Regras do protótipo**
-- Presença: corrente ≥ 20 mA, decidida no servidor (`esp32.LIMIAR_PRESENCA_MA`);
-  desplugue confirmado após 3 leituras seguidas.
-- Potência medida: o ESP32 envia tensão e corrente e o servidor grava a
-  medição (visível em `/esp32`). **Por padrão a cobrança usa a potência simulada
-  do conector (até 11 kW)**, para a demonstração ser previsível. Para cobrar pela
-  medida, inicie com `CHARGEGRID_COBRANCA_MEDIDA=1`: então **1 W medido vale 1 kW**
-  (celulares no lugar dos carros), limitado a 11 kW e à alocada, e sem medição por
-  mais de 10 s a recarga acumula 0 kW.
-- Semáforo do posto: verde (< 50 % da potência), amarelo (≥ 50 %), vermelho (cheio).
-- Com conta: desplugar encerra a recarga e o totem vai para o pagamento. O
-  conector **só é liberado depois de pago**; até lá o valor aparece como
-  pendente na Carteira (acima de R$ 100 ou 7 dias, novas recargas ficam bloqueadas).
-- Página de diagnóstico do ESP32: `/esp32`.
-
-Alterações feitas para isso e pontos em aberto: `docs/PONTOS_PARA_O_GRUPO.md`.
-
----
-
-## 🧪 Testes
-
-```bash
-pytest -v   # ou pela interface, em /testes
-```
-
-**414 testes** em 47 classes. A suíte roda contra um banco temporário por teste,
-então executá-la **não altera o `chargegrid.db` da demonstração**.
-
-| Suíte | Cobertura |
-|---|---|
-| PricingEngine | Os três eixos de tarifa e as fronteiras de horário |
-| PowerManager · Alocação / Rebalance | Limites, throttle, recusa física e prioridade |
-| SessionManager | Energia em tempo real, idempotência, taxa mínima |
-| Flask Routes | Todas as rotas, incluindo posto lotado e fluxos de erro |
-| Regressão e Auditoria | Não-reincidência dos bugs corrigidos |
-| Conector VIP | Exclusividade do conector C5 |
-| **Autenticação** | Guarda de acesso, staff × usuário, open redirect |
-| **Modo App e Modo Totem** | Alternância de modos, isolamento de modos e consistência de sessão |
-| **Veículos e Integridade** | Múltiplos carros por conta, placa única ativa e cadastro avulso |
-| **Totem com Conta** | Pareamento via QR Code, ciclo de vida do token e sessão remota |
-| **Totem sem Conta** | Sinal de R$ 50,00 pré-pago, encerrar no totem ou no celular devolve o restante |
-| **Carteira** | Saldos iniciais, débito/crédito, saldo insuficiente, extrato |
-| **Reserva** | Débito do sinal, unicidade, cancelamento, expiração |
-| **Billing** | Abatimento do sinal, teto do abatimento, cashback |
-| **Pagamento** | Três métodos, propriedade da sessão, duplo clique, CSV |
-| **QR simulado** | Determinismo e rótulo acessível |
-| **Estruturas de Dados** | Busca e ordenação manuais, contagens contra as fórmulas fechadas, estabilidade, coleção vazia, guarda anti-`sorted` |
-| **Integração dos algoritmos** | Testes-espião: falham se `get_session` deixar de usar a busca sequencial ou o `rebalance` deixar de usar o insertion sort |
-| **Carregamento do histórico** | Reconstrução das sessões do SQLite, banco ausente e arquivo corrompido |
-| **Menu de terminal** | As 7 opções, validações de entrada, `EOFError` e falha dentro de uma opção |
-| **Memória × histórico** | Os rótulos que separam sessões desta execução do histórico arquivado, e a consulta única que substituiu uma por sessão |
-| **Tarifa com fonte única** | `pricing_engine` reexporta as constantes de `logica_recarga` em vez de redeclará-las |
-| **Robustez e Concorrência** | Isolamento de sinal de reserva concluída, exigência de quitação de excedente avulso > R$ 50, estorno automático ≤ R$ 50, proteção contra clock skew em `duration_seconds`, injeção de cabeçalhos OWASP, bloqueio de backslash open-redirect, páginas de erro 404/500 customizadas e sincronização omnichannel totem-celular |
-| **Melhorias Comerciais e IoT** | Orçamento bidirecional (`aplicar_orcamento`), endpoint `POST /api/energia` (Pico W em watts e kW), rebalanceamento automático no encerramento pelo totem, restauração completa em memória e banco no `demo-reset` |
-
----
-
-## 🧮 Estruturas de Dados e Algoritmos
-
-Os algoritmos de busca e ordenação foram implementados diretamente no núcleo
-do sistema e operam em produção tanto nas rotas web quanto no terminal.
-
-| Algoritmo | Big-O | Onde o sistema usa |
-|---|:-:|---|
-| `busca_sequencial` | O(n) | `SessionManager.get_session` e o campo de busca do `/relatorio` (`buscar`) |
-| `merge_sort` | O(n log n) | `ordenar_por` — cabeçalhos da tabela do `/relatorio`; opções 4 e 6 do menu |
-| `insertion_sort` | O(n²) / O(n) | `PowerManager.rebalance` — toda vez que um conector é liberado |
-| `busca_binaria` | O(log n) | opção 3 do menu, como contraste medido |
-| `bubble_sort` | O(n²) | opção 4 do menu |
-
-`algoritmos.py` importa **apenas** `models` e a biblioteca padrão — nada de
-Flask, nada de SQLite. Dentro dele não há `.sort(`, `sorted(`, `.index(` nem
-`bisect`, e um teste automatizado varre o arquivo para garantir que continue
-assim.
-
-O menu de terminal abre sobre o histórico real do banco:
-
-```bash
-python menu.py   # menu interativo, 7 opções
-```
-
-```
-=====================================
-        ESTAÇÃO DE RECARGA
-      ChargeGrid Intelligence
-=====================================
-
-1 - Nova sessão de recarga
-2 - Listar sessões
-3 - Buscar sessão
-4 - Ordenar sessões
-5 - Estatísticas
-6 - Comparar algoritmos (Big-O na prática)
-7 - Encerrar
-```
-
-A opção 6 mede busca e ordenação sobre a coleção real, em vários tamanhos de
-entrada. Com 180 sessões no banco:
-
-| n | busca sequencial | busca binária | bubble | n(n−1)/2 | insertion | insertion já ordenada | merge O(n log n) |
-|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| 10 | 10 | 4 | 45 | 45 | 32 | 9 | 23 |
-| 50 | 50 | 6 | 1.225 | 1.225 | 678 | 49 | 222 |
-| 180 | 180 | 8 | 16.110 | 16.110 | 7.933 | 179 | 1.116 |
-
-A coluna do bubble é idêntica à fórmula fechada em todas as linhas, a do
-insertion em lista já ordenada é exatamente n−1 — o melhor caso linear que
-justifica o insertion no `rebalance` — e o `merge_sort` mantém crescimento
-garantido O(n log n) na ordenação de tabelas completas no `/relatorio`.
-
-A análise completa, com o trecho de código que provoca o crescimento de cada
-algoritmo, está no **`RELATORIO_SPRINT3_DSA.pdf`**, que acompanha o pacote
-de entrega — fora deste repositório, porque é documento de disciplina e não
-parte do aplicativo.
-
----
-
-## 📊 Dados para as análises estatísticas
-
-As disciplinas de Modelagem Linear e de Estruturas de Dados precisam de algumas
-centenas de sessões. O gerador produz um histórico plausível **pelas mesmas
-regras do produto** (tarifa da PricingEngine, potências entre 4,2 e 11 kW,
-horários com pico às 19h):
-
-```bash
-python seed_historico.py 300 --limpar --semente 42
-```
-
-Depois, entre como `mylon` e baixe em **`/admin/export.csv`**.
-
-Com a base gerada acima, a regressão `duração → energia` devolve coeficiente
-angular **0,1603 kWh/min** (R² = 0,865) — que **multiplicado por 60 dá 9,62 kW**,
-próximo da potência média realmente entregue nas sessões, 9,32 kW, e dentro da
-faixa do GW11K-HCA-20. A diferença entre os dois vem do intercepto negativo
-(−0,47 kWh): a reta cobra um custo fixo de partida que não existe, e compensa
-com uma inclinação um pouco maior. A dispersão em torno dela é o throttling.
-
----
-
-## 🎨 Design
-
-Modo **Operate**: o usuário está executando uma tarefa, então escaneabilidade e
-consistência valem mais que expressão. A marca vive nos detalhes.
-
-- **Tokens** para tipografia (escala fixa, razão 1,125), espaçamento (base 4px),
-  raios e movimento — substituindo os ~25 tamanhos de fonte e 18 espaçamentos
-  soltos do Sprint 2
-- **Contraste WCAG AA** nos dois temas: a paleta separa cor de *superfície* de
-  cor de *texto*, porque `#C00000` é ótimo como fundo de botão (6,48:1) e
-  reprovado como cor de link sobre o card escuro (2,26:1)
-- **Números tabulares** em todo valor que muda ou aparece em coluna — sem isso o
-  dashboard "dança" a cada atualização de 5 segundos
-- **Foco de teclado visível** em todo controle e respeito a `prefers-reduced-motion`
-- **Três momentos de deleite**, e só três: countdown da reserva, contagem do
-  cashback no recibo e realce de valores no dashboard
-
-A marca **NexusCharge** é um `<symbol>` SVG inline definido uma vez em
-`base.html`: acompanha o tema, funciona a 20px no menu de perfil e serve
-também de símbolo da moeda NexusCoin.
-
----
-
-## 🛠️ Stack
-
-- **Backend:** Python 3 · Flask
-- **Persistência:** SQLite (`sqlite3` da stdlib — sem ORM, sem instalação)
-- **Frontend:** HTML5 · CSS3 · JavaScript (vanilla, sem framework)
-- **Mapa:** Leaflet + OpenStreetMap
-- **Testes:** pytest
-- **Protocolo:** Modbus TCP (simulado)
-
----
-
-## 👥 Equipe
-
-Projeto desenvolvido para o **EV Challenge 2026** (FIAP + GoodWe).
-
-| Nome | RM |
-|---|---|
-| Giovanne Gomes Petenuci | 574091 |
-| Arthur Vettorazzo de Souza | 569445 |
-| Gustavo Zibini Belizario | 561376 |
-| Alan Junio Araujo de Souza | 574112 |
-| Brayan Barbosa Dos Santos | 573682 |
-| Luiz Otávio Brito Freixo | 569977 |
-
----
-
-## 📄 Licença
-
-Projeto acadêmico desenvolvido no contexto do EV Challenge 2026 (FIAP + GoodWe).
+Projeto acadêmico desenvolvido para o EV Challenge 2026 (FIAP + GoodWe).
