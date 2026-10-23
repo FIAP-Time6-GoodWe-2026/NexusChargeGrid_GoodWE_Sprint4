@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.vscode/
+chargegrid.log
+chargegrid.db
+chargegrid_sessoes.csv
+.venv/
+.impeccable/
+
+# Documento da disciplina: mora ao lado do repositorio, nao dentro dele.
+RELATORIO_SPRINT3_DSA.*
+
+# Pacote de entrega, gerado a partir do que ja esta versionado aqui
+*.zip
+
+# IDE e configuracao local do totem (senha do Wi-Fi e token)
+.idea/
+firmware/**/config.h
+
+# Ambiente virtual criado pelo iniciar.command (macOS)
+.venv/

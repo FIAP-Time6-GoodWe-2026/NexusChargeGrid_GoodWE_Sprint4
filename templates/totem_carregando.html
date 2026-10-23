@@ -1,0 +1,239 @@
+{% extends "totem_base.html" %}
+{% block title %}Recarregando — NexusCharge{% endblock %}
+
+{% block totem_css %}
+.tr-cabeca { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.tr-carro { font-size: var(--fs-lg); color: var(--cor-texto-secundario); margin-top: var(--sp-2); }
+
+/* ── Números heróicos do Totem com tamanho grande e legibilidade superior ── */
+.tt-numeros {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1rem !important;
+}
+.tt-numero {
+    background: var(--cor-superficie-2) !important;
+    border: 1.5px solid var(--cor-borda) !important;
+    border-radius: var(--r-lg) !important;
+    padding: 1.25rem 1.4rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    min-height: 120px !important;
+}
+.tt-numero > span {
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    color: var(--cor-texto-secundario) !important;
+}
+.tt-numero strong {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 6px !important;
+    font-size: 2.85rem !important;
+    line-height: 1 !important;
+    font-weight: 800 !important;
+    color: var(--cor-texto) !important;
+    margin-top: 6px !important;
+    font-variant-numeric: tabular-nums !important;
+}
+.tt-numero small {
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    color: var(--cor-texto-secundario) !important;
+}
+
+/* ── Cartão de Acompanhamento no Celular em Destaque ── */
+.tr-celular-card {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--cor-card);
+    border: 2px solid rgba(16, 185, 129, 0.45);
+    border-radius: var(--r-xl, 18px);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.10);
+}
+[data-theme="dark"] .tr-celular-card {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.75) 100%);
+    border-color: rgba(16, 185, 129, 0.55);
+    box-shadow: 0 4px 24px rgba(16, 185, 129, 0.16);
+}
+.tr-celular-qr-lado {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.tr-celular-qr {
+    width: 175px !important;
+    height: 175px !important;
+    background: #FFFFFF !important;
+    border-radius: 16px !important;
+    padding: 10px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+.tr-celular-qr svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+}
+.tr-celular-qr-legenda {
+    font-size: 0.75rem !important;
+    font-weight: 800 !important;
+    color: var(--cor-livre-texto, #10B981) !important;
+}
+.tr-celular-info {
+    flex: 1;
+    min-width: 0;
+}
+.tr-celular-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-bold);
+    color: var(--cor-livre-texto, #10B981);
+    background: rgba(16, 185, 129, 0.16);
+    padding: 4px 11px;
+    border-radius: var(--r-pill);
+    margin-bottom: 8px;
+}
+.tr-celular-tag svg {
+    width: 15px;
+    height: 15px;
+}
+.tr-celular-chamada {
+    font-size: 1.15rem;
+    font-weight: var(--fw-bold);
+    color: var(--cor-texto);
+    margin: 0 0 6px;
+    line-height: var(--lh-tight);
+}
+.tr-celular-texto {
+    font-size: var(--fs-xs);
+    color: var(--cor-texto-secundario);
+    line-height: var(--lh-normal);
+    margin: 0;
+}
+.tr-celular-texto strong {
+    color: var(--cor-texto);
+}
+{% endblock %}
+
+{% block totem %}
+<div>
+    <div class="tr-cabeca">
+        <h1 class="tt-titulo">Recarregando</h1>
+        <span class="tt-estado ativo" id="tt-badge-estado">{% if s.status.value == 'THROTTLED' %}Potência ajustada{% else %}Em andamento{% endif %}</span>
+    </div>
+    <p class="tr-carro">
+        Carro <span class="tt-placa">{{ s.vehicle_id[:3] }}-{{ s.vehicle_id[3:] }}</span>
+        {% if conta %} · {{ conta.nome }}{% endif %}
+    </p>
+</div>
+
+<div class="tt-numeros" aria-live="polite">
+    <div class="tt-numero"><span>Energia</span><strong><span id="tt-val-energia">{{ '%.2f' | format(s.energy_kwh) | replace('.', ',') }}</span><small>kWh</small></strong></div>
+    <div class="tt-numero"><span>Potência</span><strong><span id="tt-val-potencia">{{ '%.1f' | format(potencia_kw(s)) | replace('.', ',') }}</span><small>kW</small></strong></div>
+    <div class="tt-numero"><span>Tempo</span><strong><span id="tt-val-tempo">{{ '%.0f' | format(s.duration_minutes) }}</span><small>min</small></strong></div>
+    <div class="tt-numero"><span>Até agora</span><strong><small>R$</small> <span id="tt-val-subtotal">{{ cobranca.subtotal_brl | brl }}</span></strong></div>
+</div>
+
+{% if eh_avulso and qr_celular %}
+<div class="tr-celular-card" role="region" aria-label="Acompanhe pelo celular">
+    <div class="tr-celular-qr-lado">
+        <div class="tr-celular-qr">{{ qr_celular | safe }}</div>
+        <span class="tr-celular-qr-legenda">Aponte a câmera</span>
+    </div>
+    <div class="tr-celular-info">
+        <div class="tr-celular-tag">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                <line x1="12" y1="18" x2="12.01" y2="18"/>
+            </svg>
+            <span>Acompanhe no Celular</span>
+        </div>
+        <h2 class="tr-celular-chamada">Leve o status da recarga no bolso</h2>
+        <p class="tr-celular-texto">
+            Escaneie este QR Code para monitorar a potência em tempo real e receber seu <strong>comprovante digital com a devolução do sinal</strong> automaticamente.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<div class="tt-painel">
+    <div class="tt-linha"><span>Tarifa fixada na conexão</span><strong>R$ {{ s.tariff_kwh | brl(4) }} / kWh</strong></div>
+    {% if eh_avulso %}
+    <div class="tt-linha"><span>Sinal retido</span><strong>R$ {{ caucao | brl }}</strong></div>
+    {% endif %}
+    {% if s.status.value == 'THROTTLED' %}
+    <p class="tt-nota" style="margin-top: var(--sp-4)">
+        O posto está com muitos carros ao mesmo tempo. A potência deste
+        conector foi reduzida para não ultrapassar o limite da instalação e
+        volta ao máximo quando outro carro sair.
+    </p>
+    {% endif %}
+</div>
+
+<div class="tt-acoes">
+    {% if eh_avulso %}
+    <p class="tt-nota">Recarga pré-paga: termina sozinha ao atingir o valor pago. Se encerrar antes, o restante é devolvido.</p>
+    {% endif %}
+    <form method="POST" action="{{ url_for('totem_encerrar') }}">
+        <button type="submit" class="tt-btn primario">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="6" y="6" width="12" height="12" rx="1.5"/>
+            </svg>
+            Encerrar carregamento
+        </button>
+    </form>
+    {% if not eh_avulso %}
+    <form method="POST" action="{{ url_for('totem_sair') }}">
+        <button type="submit" class="tt-btn discreto">Sair e continuar carregando</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var pollUrl = "{{ url_for('totem_carregando_status') }}";
+    function atualizar() {
+        fetch(pollUrl)
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data.ativo && data.redirect) {
+                    window.location.href = data.redirect;
+                    return;
+                }
+                if (data.ativo) {
+                    var elEnergia = document.getElementById("tt-val-energia");
+                    var elPotencia = document.getElementById("tt-val-potencia");
+                    var elTempo = document.getElementById("tt-val-tempo");
+                    var elSubtotal = document.getElementById("tt-val-subtotal");
+                    var elBadge = document.getElementById("tt-badge-estado");
+
+                    if (elEnergia) elEnergia.textContent = data.energia;
+                    if (elPotencia) elPotencia.textContent = data.potencia;
+                    if (elTempo) elTempo.textContent = data.tempo;
+                    if (elSubtotal) elSubtotal.textContent = data.subtotal;
+                    if (elBadge) {
+                        elBadge.textContent = data.status_texto;
+                    }
+                }
+            })
+            .catch(function (err) {
+                console.warn("Erro ao atualizar telemetria do totem:", err);
+            });
+    }
+    // Atualização dinâmica contínua sem recarregar a tela
+    setInterval(atualizar, 2000);
+})();
+</script>
+{% endblock %}

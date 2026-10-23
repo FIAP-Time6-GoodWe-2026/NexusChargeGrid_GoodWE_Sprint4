@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+{# =============================================================================
+   A tela que abre no celular ao ler o QR do totem. É o app no celular, não o
+   totem: layout de telefone, sem a moldura do totem.
+   ============================================================================= #}
+{% block title %}Entrar no totem — NexusCharge{% endblock %}
+
+{% block extra_css %}
+<style>
+.cp {
+    max-width: 440px; min-height: auto; margin: 0 auto;
+    display: flex; flex-direction: column;
+    padding: var(--sp-4) var(--sp-4) var(--sp-6);
+    gap: var(--sp-4);
+    box-sizing: border-box;
+}
+.cp-marca { display: flex; align-items: center; gap: var(--sp-2);
+    font-weight: var(--fw-bold); font-size: var(--fs-lg); color: var(--cor-texto); }
+.cp-marca svg { width: 32px; height: 32px; }
+.cp-titulo { font-size: var(--fs-xl); font-weight: var(--fw-bold); line-height: var(--lh-tight);
+    color: var(--cor-texto); text-wrap: balance; }
+.cp-sub { font-size: var(--fs-sm); color: var(--cor-texto-secundario); margin-top: var(--sp-1); }
+
+.cp-conta {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--cor-card); border: 1px solid var(--cor-borda);
+    border-radius: var(--r-lg); box-shadow: var(--sombra-sm);
+}
+.cp-avatar { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--cor-primaria); color: #fff; font-weight: var(--fw-bold); font-size: var(--fs-md); }
+.cp-conta strong { display: block; font-size: var(--fs-md); color: var(--cor-texto); }
+.cp-conta span { font-size: var(--fs-xs); color: var(--cor-texto-secundario); }
+
+.cp-acoes { margin-top: var(--sp-2); display: grid; gap: var(--sp-3); }
+.cp-btn { display: flex; align-items: center; justify-content: center; min-height: 52px;
+    border-radius: var(--r-md); font: inherit; font-size: var(--fs-md); font-weight: var(--fw-bold);
+    border: 0; cursor: pointer; text-decoration: none; width: 100%; }
+.cp-btn.primario { background: var(--cor-primaria); color: #fff; box-shadow: var(--sombra-sm); }
+.cp-btn.primario:hover { background: var(--cor-primaria-dark); }
+.cp-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.cp-card {
+    background: var(--cor-card);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--r-xl, 16px);
+    padding: var(--sp-4) var(--sp-5);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+}
+[data-theme="dark"] .cp-card {
+    background: var(--cor-card);
+    box-shadow: var(--sombra-sm);
+}
+.cp-grid-numeros {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3);
+}
+.cp-tile {
+    background: var(--cor-card);
+    border: 1.5px solid var(--cor-borda);
+    border-radius: var(--r-md);
+    padding: var(--sp-3) var(--sp-4);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+[data-theme="dark"] .cp-tile {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+.cp-tile span {
+    display: block; font-size: var(--fs-xs); font-weight: 600;
+    color: var(--cor-texto-secundario);
+    margin-bottom: 4px;
+}
+.cp-tile strong {
+    display: flex; align-items: baseline; gap: 4px;
+    font-size: 1.85rem; font-weight: 800; color: var(--cor-texto);
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.cp-tile small {
+    font-size: 0.85rem; font-weight: 600; color: var(--cor-texto-secundario);
+}
+
+.cp-badge-status {
+    display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold); color: var(--cor-livre-texto, #10B981);
+    background: rgba(16, 185, 129, .14); padding: 4px 10px; border-radius: var(--r-pill);
+    margin-bottom: var(--sp-2);
+}
+.cp-badge-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.cp-badge-status.throttle {
+    color: var(--cor-vip-texto); background: rgba(245, 158, 11, 0.14);
+}
+
+.cp-alerta-throttle {
+    margin-top: var(--sp-3);
+    padding: var(--sp-3);
+    border-radius: var(--r-md);
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    font-size: var(--fs-xs);
+    color: var(--cor-texto);
+    line-height: 1.45;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.cp-alerta-throttle svg {
+    width: 16px;
+    height: 16px;
+    stroke: var(--cor-vip-texto);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.cp-cashback-badge {
+    margin-top: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-md);
+    background: rgba(17, 184, 130, 0.1);
+    border: 1px solid rgba(17, 184, 130, 0.25);
+    font-size: var(--fs-xs);
+    color: var(--cor-texto);
+    display: flex; align-items: center; gap: var(--sp-2);
+}
+.cp-cashback-badge svg {
+    width: 18px;
+    height: 18px;
+    stroke: var(--cor-livre-texto);
+    flex-shrink: 0;
+}
+
+.cp-pulse-box {
+    text-align: center; padding: var(--sp-6) var(--sp-2);
+}
+.cp-pulse-ring {
+    width: 64px; height: 64px; margin: 0 auto var(--sp-4);
+    border-radius: 50%;
+    border: 3px solid var(--cor-primaria);
+    border-top-color: transparent;
+    animation: cp-spin 1.2s linear infinite;
+}
+@keyframes cp-spin { to { transform: rotate(360deg); } }
+
+.cp-resultado { text-align: center; padding-top: var(--sp-4); }
+.cp-resultado svg { width: 72px; height: 72px; margin: 0 auto var(--sp-3); display: block; }
+.cp-ok circle { fill: var(--cor-livre, #10B981); }
+.cp-ok path, .cp-erro path { stroke: #fff; stroke-width: 7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.cp-erro circle { fill: var(--cor-ocupado, #E11414); }
+.cp-nota { font-size: var(--fs-xs); color: var(--cor-texto-secundario); text-align: center; margin-top: var(--sp-1); }
+</style>
+{% endblock %}
+
+{% block header %}
+<header class="header">
+    <div class="header-content">
+        <div class="header-brand">
+            <span class="brand-icon" title="NexusCharge Mobile">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+            </span>
+            <div>
+                <h1>NexusCharge Mobile</h1>
+                <div class="header-subtitle">Acompanhamento e controle de recarga</div>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            {% include 'partials/_modo_toggle.html' %}
+            <button class="theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">
+                <svg class="icon-sun" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<main class="cp">
+    {% if estado == 'confirmar' %}
+    <div>
+        <h1 class="cp-titulo">Entrar no totem do {{ charger_id.split('-')[1] }}?</h1>
+        <p class="cp-sub">{{ posto.nome }} · {{ posto.endereco }}</p>
+    </div>
+
+    <div class="cp-conta">
+        <span class="cp-avatar" aria-hidden="true">{{ conta.nome.split()[0][0] }}{{ conta.nome.split()[-1][0] }}</span>
+        <span>
+            <strong>{{ conta.nome }}</strong>
+            <span>{{ conta.tipo.value | tipo_pt }} · a conta deste celular</span>
+        </span>
+    </div>
+
+    <form method="POST" class="cp-acoes">
+        <button type="submit" class="cp-btn primario">Confirmar e entrar</button>
+    </form>
+
+    <p class="cp-nota">O totem sai da sua conta sozinho quando a recarga terminar.</p>
+
+    {% elif estado == 'pronto' %}
+
+    {# ── Painel de Telemetria Ao Vivo (visível quando recarga iniciou) ── #}
+    <div id="cp-telemetria" style="display: {% if sessao and sessao.is_active %}flex{% else %}none{% endif %}; flex-direction: column; gap: var(--sp-4);">
+        <div>
+            <span id="tel-badge" class="cp-badge-status {% if sessao and sessao.status.value == 'THROTTLED' %}throttle{% endif %}">
+                {% if sessao and sessao.status.value == 'THROTTLED' %}Potência ajustada pela rede{% else %}Em andamento{% endif %}
+            </span>
+            <h1 class="cp-titulo">Recarregando no Totem</h1>
+            <p class="cp-sub">{{ posto.nome }} · {{ charger_id }} · Veículo: <strong id="tel-placa" style="font-family:ui-monospace,monospace;">{{ sessao.vehicle_id if sessao else '' }}</strong></p>
+        </div>
+
+        <div class="cp-card">
+            <div class="cp-grid-numeros">
+                <div class="cp-tile">
+                    <span>Energia acumulada</span>
+                    <strong id="tel-energia">{{ '%.2f' | format(sessao.energy_kwh) | replace('.', ',') if sessao else '0,00' }}<small>kWh</small></strong>
+                </div>
+                <div class="cp-tile">
+                    <span>Potência instantânea</span>
+                    <strong id="tel-potencia">{{ '%.1f' | format(potencia_kw(sessao)) | replace('.', ',') if sessao else '0,0' }}<small>kW</small></strong>
+                </div>
+                <div class="cp-tile">
+                    <span>Tempo de conexão</span>
+                    <strong id="tel-duracao">{{ '%.0f' | format(sessao.duration_minutes) if sessao else '0' }}<small>min</small></strong>
+                </div>
+                <div class="cp-tile">
+                    <span>Subtotal</span>
+                    <strong id="tel-valor">R$ {{ cobranca.subtotal_brl | brl if cobranca else '0,00' }}</strong>
+                </div>
+            </div>
+
+            <div id="tel-throttle" class="cp-alerta-throttle" style="{% if not (sessao and sessao.status.value == 'THROTTLED') %}display:none;{% endif %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <span><strong>GW11K-HCA-20 Balanceamento:</strong> Potência flexibilizada temporariamente para otimização da demanda geral do posto. Voltará aos 11 kW normais assim que a demanda estabilizar.</span>
+            </div>
+
+            <div class="cp-cashback-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.6 1 1.4 1 2.3h6c0-.9.4-1.7 1-2.3A7 7 0 0 0 12 2z"/>
+                </svg>
+                <span>Pague com <strong>NexusCoin</strong> no encerramento e receba <strong>10% de cashback</strong> direto na sua carteira.</span>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('celular_parear_encerrar', token=token) }}">
+            <button type="submit" class="cp-btn primario" style="background: linear-gradient(135deg, #D41414 0%, #A00000 100%); min-height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="6" y="6" width="12" height="12" rx="1.5"/>
+                </svg>
+                <span>Encerrar recarga e pagar no celular</span>
+            </button>
+        </form>
+
+        <p class="cp-nota">Você pode encerrar aqui pelo celular ou tocar em "Encerrar" na tela do totem.</p>
+    </div>
+
+    {# ── Painel de Aguardo (quando confirmado mas recarga ainda não deu start no totem) ── #}
+    <div id="cp-aguardando" style="display: {% if sessao %}none{% else %}block{% endif %};" class="cp-pulse-box">
+        <div class="cp-pulse-ring" aria-hidden="true"></div>
+        <h2 class="cp-titulo" style="font-size: 1.25rem;">Conta conectada ao totem!</h2>
+        <p class="cp-sub" style="margin-top: var(--sp-2); max-width: 320px; margin-left: auto; margin-right: auto;">
+            Agora, na tela do totem (<strong>{{ charger_id }}</strong>), escolha seu veículo e conecte o cabo. Esta tela atualizará automaticamente com a telemetria ao vivo.
+        </p>
+    </div>
+
+    {# ── Painel de Concluído ── #}
+    <div id="cp-concluido" style="display: {% if sessao and not sessao.is_active %}block{% else %}none{% endif %};" class="cp-resultado">
+        <svg class="cp-ok" viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="42"/><path d="M26 45 l12 12 l24 -26"/></svg>
+        <h1 class="cp-titulo">Recarga Concluída!</h1>
+        <p class="cp-sub">A sessão foi finalizada no totem. Confira seu comprovante impresso ou na tela do conector.</p>
+        <p id="cp-pendente" class="cp-sub" style="display:{% if pendente %}block{% else %}none{% endif %};margin-top:16px;">O valor ficou como <strong>pagamento pendente na sua conta</strong>. Pague pela Carteira, no app: o conector só é liberado após o pagamento.</p>
+    </div>
+
+    {% else %}
+    <div class="cp-resultado">
+        <svg class="cp-erro" viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="42"/><path d="M30 30 l28 28 M58 30 l-28 28"/></svg>
+        <h1 class="cp-titulo">Este código expirou</h1>
+        <p class="cp-sub">No totem, toque em "Entrar com conta existente" para gerar um código novo.</p>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+{% if estado == 'pronto' %}
+<script>
+(function() {
+    var token = "{{ token }}";
+    var pollUrl = "/celular/parear/" + encodeURIComponent(token) + "/status";
+
+    function atualizarStatus() {
+        fetch(pollUrl)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                var elAguardando = document.getElementById("cp-aguardando");
+                var elTelemetria = document.getElementById("cp-telemetria");
+                var elConcluido = document.getElementById("cp-concluido");
+
+                if (data.status === "carregando") {
+                    if (elAguardando) elAguardando.style.display = "none";
+                    if (elConcluido) elConcluido.style.display = "none";
+                    if (elTelemetria) {
+                        elTelemetria.style.display = "flex";
+                        var elPlaca = document.getElementById("tel-placa");
+                        var elEnergia = document.getElementById("tel-energia");
+                        var elPotencia = document.getElementById("tel-potencia");
+                        var elDuracao = document.getElementById("tel-duracao");
+                        var elValor = document.getElementById("tel-valor");
+                        var elBadge = document.getElementById("tel-badge");
+                        var elThrottle = document.getElementById("tel-throttle");
+
+                        if (elPlaca && data.veiculo) elPlaca.textContent = data.veiculo;
+                        if (elEnergia) elEnergia.innerHTML = data.energia_kwh.toFixed(2).replace('.', ',') + '<small>kWh</small>';
+                        if (elPotencia) elPotencia.innerHTML = data.potencia_kw.toFixed(1).replace('.', ',') + '<small>kW</small>';
+                        if (elDuracao) elDuracao.innerHTML = data.duracao_min + '<small>min</small>';
+                        if (elValor) elValor.textContent = 'R$ ' + data.subtotal_brl;
+
+                        if (elBadge) {
+                            if (data.em_throttle) {
+                                elBadge.className = "cp-badge-status throttle";
+                                elBadge.textContent = "Potência ajustada pela rede";
+                            } else {
+                                elBadge.className = "cp-badge-status";
+                                elBadge.textContent = "Em andamento";
+                            }
+                        }
+                        if (elThrottle) {
+                            elThrottle.style.display = data.em_throttle ? "flex" : "none";
+                        }
+                    }
+                } else if (data.status === "aguardando") {
+                    if (elAguardando) elAguardando.style.display = "block";
+                    if (elTelemetria) elTelemetria.style.display = "none";
+                    if (elConcluido) elConcluido.style.display = "none";
+                } else if (data.status === "concluido") {
+                    if (elAguardando) elAguardando.style.display = "none";
+                    if (elTelemetria) elTelemetria.style.display = "none";
+                    if (elConcluido) elConcluido.style.display = "block";
+                    var avisoPendente = document.getElementById("cp-pendente");
+                    if (avisoPendente) avisoPendente.style.display = data.pagamento_pendente ? "block" : "none";
+                }
+            })
+            .catch(function(err) {
+                console.warn("Erro ao buscar telemetria mobile:", err);
+            });
+    }
+
+    // Polling a cada 2.5 segundos
+    setInterval(atualizarStatus, 2500);
+})();
+</script>
+{% endif %}
+{% endblock %}
+
